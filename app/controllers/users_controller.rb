@@ -1,16 +1,19 @@
 class UsersController < ApplicationController
-  before_action :set_user, only: []
 
   # POST /users
   def create
     @user = User.new(user_params)
-    salt = BCrypt::Engine.generate_salt
-    password = BCrypt::Engine.hash_secret(params['password'], salt)
-    up = UserPassword.create(user_id: @user.id, password_salt: salt, password_hash: password)
-    if @user.save
-      render json: @user, status: :created, location: @user
+    if !params['password'].nil?
+      salt = BCrypt::Engine.generate_salt
+      password = BCrypt::Engine.hash_secret(params['password'], salt)
+      if @user.save
+        up = UserPassword.create(user_id: @user.id, password_salt: salt, password_hash: password)
+        render json: @user, status: :created, location: @user
+      else
+        render json: @user.errors, status: :unprocessable_entity
+      end
     else
-      render json: @user.errors, status: :unprocessable_entity
+      render json: {status: 'no password'}
     end
   end
 
