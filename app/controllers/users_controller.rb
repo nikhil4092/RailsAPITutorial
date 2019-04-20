@@ -1,13 +1,12 @@
 class UsersController < ApplicationController
-
+  include BCrypt
   # POST /users
   def create
     @user = User.new(user_params)
     if !params['password'].nil?
-      salt = BCrypt::Engine.generate_salt
-      password = BCrypt::Engine.hash_secret(params['password'], salt)
+      password = Password.create(params['password'])
       if @user.save
-        up = UserPassword.create(user_id: @user.id, password_salt: salt, password_hash: password)
+        up = UserPassword.create(user_id: @user.id, password_hash: password)
         render json: @user, status: :created, location: @user
       else
         render json: @user.errors, status: :unprocessable_entity
@@ -19,7 +18,8 @@ class UsersController < ApplicationController
 
   # PATCH/PUT /users/1
   def update
-    if @user.user_password.password_hash == BCrypt::Engine.hash_secret(params['password'], @user.user_password.password_salt)
+    @db_password = Password.new(@user.user_password.password_hash)
+    if @db_password == params['password']
       if @user.update(user_params)
         render json: @user
       else
@@ -33,7 +33,8 @@ class UsersController < ApplicationController
   def login
     @existing_user = User.find_by_email(params['email'])
     if @existing_user
-      if @existing_user.user_password.password_hash == BCrypt::Engine.hash_secret(params['password'], @existing_user.user_password.password_salt)
+      @db_password = Password.new(@existing_user.user_password.password_hash)
+      if @db_password == params['password']
         render json: @existing_user
       else
         render json: {status: 'exists'}
